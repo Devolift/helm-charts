@@ -1,0 +1,128 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    {{ with .Values.cronjob.labels }}
+    {{ toYaml . | nindent 4 }}
+    {{ end }}
+  {{ with .Values.cronjob.annotations }}
+  annotations: {{ toYaml . | nindent 4 }}
+  {{ end }}
+spec:
+  concurrencyPolicy: {{ .Values.cronjob.concurrencyPolicy }}
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.cronjob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjob.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels: {{- include "common.labels.standard" . | nindent 12 }}
+          {{ with .Values.podLabels }}
+          {{ toYaml . | nindent 12 }}
+          {{ end }}
+          {{ with .Values.podAnnotations }}
+          annotations: {{ toYaml . | nindent 12 }}
+          {{ end }}
+        spec:
+          restartPolicy: {{ .Values.cronjob.restartPolicy }}
+          {{ if .Values.serviceAccountName }}
+          serviceAccountName: {{ .Values.serviceAccountName }}
+          {{ end }}
+          initContainers:
+            {{- if .Values.initContainers }}
+            {{- include "common.tplvalues.render" (dict "value" .Values.initContainers "context" $) | nindent 12 }}
+            {{- end }}
+          containers:
+            {{- if .Values.sidecars }}
+            {{- include "common.tplvalues.render" ( dict "value" .Values.sidecars "context" $) | nindent 12 }}
+            {{- end }}
+            - name: {{ .Release.Name }}
+              image: {{ include "cronGeneric.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
+              {{ if .Values.command }}
+              command: {{- include "common.tplvalues.render" (dict "value" .Values.command "context" $) | nindent 14 }}
+              {{ end }}
+              {{ if .Values.args }}
+              args: {{- include "common.tplvalues.render" (dict "value" .Values.args "context" $) | nindent 14 }}
+              {{ end }}
+              env:
+                {{- if .Values.extraEnvVars }}
+                {{- include "common.tplvalues.render" ( dict "value" .Values.extraEnvVars "context" $ ) | nindent 16 }}
+                {{- end }}
+              envFrom:
+                - configMapRef:
+                    name: {{ include "configmap.name" . }}
+                {{- if .Values.extraEnvVarsConfigMap }}
+                - configMapRef:
+                    name: {{ include "common.tplvalues.render" ( dict "value" .Values.extraEnvVarsConfigMap "context" $ ) }}
+                {{- end }}
+                {{- if .Values.extraEnvVarsSecret }}
+                - secretRef:
+                    name: {{ include "common.tplvalues.render" ( dict "value" .Values.extraEnvVarsSecret "context" $ ) }}
+                {{- end }}
+              {{ if .Values.livenessProbe.enabled }}
+              livenessProbe:
+                initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+                periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+                timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+                successThreshold: {{ .Values.livenessProbe.successThreshold }}
+                failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+                httpGet:
+                  path: {{ .Values.livenessProbe.path }}
+                  port: 80
+              {{ end }}
+              {{ if .Values.readinessProbe.enabled }}
+              readinessProbe:
+                initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+                periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+                timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+                successThreshold: {{ .Values.readinessProbe.successThreshold }}
+                failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+                httpGet:
+                  path: {{ .Values.readinessProbe.path }}
+                  port: 80
+              {{ end }}
+              {{ if .Values.startupProbe.enabled }}
+              startupProbe:
+                initialDelaySeconds: {{ .Values.startupProbe.initialDelaySeconds }}
+                periodSeconds: {{ .Values.startupProbe.periodSeconds }}
+                timeoutSeconds: {{ .Values.startupProbe.timeoutSeconds }}
+                successThreshold: {{ .Values.startupProbe.successThreshold }}
+                failureThreshold: {{ .Values.startupProbe.failureThreshold }}
+                httpGet:
+                  path: {{ .Values.startupProbe.path }}
+                  port: 80
+              {{ end }}
+              volumeMounts:
+                {{- if .Values.extraVolumeMounts }}
+                {{- toYaml .Values.extraVolumeMounts | nindent 16 }}
+                {{- end }}
+              resources: {{ toYaml .Values.resources | nindent 16 }}
+          volumes:
+            {{- if .Values.extraVolumes }}
+            {{- toYaml .Values.extraVolumes | nindent 12 }}
+            {{- end }}
+          {{ if .Values.affinity }}
+          affinity: {{- include "common.tplvalues.render" (dict "value" .Values.affinity "context" $) | nindent 8 }}
+          {{ end }}
+          {{- if .Values.nodeSelector }}
+          nodeSelector: {{- include "common.tplvalues.render" (dict "value" .Values.nodeSelector "context" $) | nindent 8 }}
+          {{- end }}
+          {{- if .Values.tolerations }}
+          tolerations: {{- include "common.tplvalues.render" (dict "value" .Values.tolerations "context" $) | nindent 8 }}
+          {{- end }}
+          {{- if .Values.topologySpreadConstraints }}
+          topologySpreadConstraints: {{- include "common.tplvalues.render" (dict "value" .Values.topologySpreadConstraints "context" $) | nindent 8 }}
+          {{- end }}
+          {{ if .Values.schedulerName }}
+          schedulerName: {{ .Values.schedulerName }}
+          {{ end }}
+          {{ if .Values.securityContext.enabled }}
+          securityContext:
+            runAsUser: {{ .Values.securityContext.runAsUser }}
+            runAsGroup: {{ .Values.securityContext.runAsGroup }}
+            fsGroup: {{ .Values.securityContext.fsGroup }}
+          {{ end }}

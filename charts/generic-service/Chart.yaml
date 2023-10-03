@@ -1,0 +1,22 @@
+apiVersion: v2
+description: Devolift generic service helm chart
+name: generic-service
+version: 0.0.1
+dependencies:
+  - name: common
+    repository: oci://registry-1.docker.io/bitnamicharts
+    tags:
+      - bitnami-common
+    version: 2.x.x
+keywords:
+  - service
+  - devolift
+  - api
+  - back
+sources:
+  - https://github.com/devolift/helm-charts/
+home: https://devolift.com/
+icon: https://avatars.githubusercontent.com/u/18402183?s=200&v=4
+maintainers:
+  - name: Matthieu Delmaire
+    email: matthieu.delmaire@devolift.com
